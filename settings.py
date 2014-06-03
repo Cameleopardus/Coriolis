@@ -1,9 +1,9 @@
 NUM_THREADS = 4
 identity = {
-    'eof': {
+    'bob': {
         'nickname': 'bob',
         'realname': 'dat guy',
-        'username': 'EE OH EFF',
+        'username': 'BEE OH BEE',
         'nickserv_pw': None
     },
 }
