@@ -12,9 +12,9 @@ networks = {
 #        'host': 'chat.eu.freenode.net',
 #        'port': 7000,
 #        'ssl': True,
-#        'identity': identity['eof'],
+#        'identity': identity['BOB'],
 #        'autojoin': (
-#            '#goawayimeof',
+#            '#goawaybob',
 #        )
 
 #    },
