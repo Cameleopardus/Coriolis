@@ -20,18 +20,6 @@ networks = {
 #    },
 #
 
-          'Hardchatz': {
-
-           'host': 'irc.hardchats.org',
-           'port': 6667,
-           'ssl': False,
-          'identity': identity['eof'],
-           'autojoin': (
-               '#testingstuff',
-           )
-       },
-
-
 }
 
 
