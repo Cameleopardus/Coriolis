@@ -1,4 +1,4 @@
-__author__ = 'zen'
+
 import multiprocessing
 from multiprocessing import log_to_stderr
 import logging
