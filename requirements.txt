@@ -1,8 +1,9 @@
 Twisted==14.0.2
-cffi==0.8.6
 cryptography==0.6.1
 pyOpenSSL==0.14
 pycparser==2.10
+python-daemon==1.6.1
+service-identity==14.0.0
 six==1.8.0
 wsgiref==0.1.2
 zope.interface==4.1.1
