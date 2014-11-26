@@ -4,6 +4,7 @@ import dns
 from dns import resolver
 import sys
 
+
 def do(args, pipe=None):
     record_type = "A"
     records = []
@@ -37,9 +38,7 @@ def do(args, pipe=None):
         print resp
         return str(resp)
 
-
-
-    except :
+    except:
         ex = sys.exc_info()[0]
         if ex == resolver.NoAnswer:
             return ("No Answer (" + record_type + " " + host + ")")
@@ -52,8 +51,6 @@ def do(args, pipe=None):
 
         if ex == dns.rdatatype.UnknownRdatatype:
             return ("Record type: " + record_type + " is not supported.")
-
-
 
         print str(ex)
         return str(ex)

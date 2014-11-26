@@ -8,13 +8,12 @@ class Worker():
     pool = Pool(WORKER_THREADCOUNT)
 
     def do_work(self, f, args=None, async=True, pipe=None):
-        #add to pool
+        # add to pool
         if pipe is not None:
             r = self.pool.apply_async(f, args=args)
             pipe.send(r)
         else:
             return self.pool.apply_async(f, args=args)
-
 
     def close(self):
         self.pool.close()
@@ -32,4 +31,3 @@ def init():
     del dbg
     return Worker()
     pass
-

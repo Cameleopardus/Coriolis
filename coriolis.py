@@ -3,6 +3,7 @@ import multiprocessing
 from multiprocessing import log_to_stderr
 import logging
 import atexit
+import os
 
 from twisted.internet import reactor
 from twisted.internet import protocol
@@ -19,8 +20,6 @@ import profiler
 import signal
 import threading
 
-#da bot
-
 worker = Worker.init()
 logger = log_to_stderr()
 logger.setLevel(logging.INFO)
@@ -28,18 +27,19 @@ m = multiprocessing.Manager()
 
 
 @atexit.register
-def cleanup():
+def cleanup(signal, frame):
     stoppool = threading.Thread(target=worker.close())
     stoppool.daemon = True
     stoppool.start()
     print"cleaning up.."
     print "bye!"
+    os._exit(0)
+
+signal.signal(signal.SIGINT, cleanup)
 
 
+class Coriolis(irc.IRCClient):
 
-
-
-class DA_BOT(irc.IRCClient):
     def connectionMade(self):
         irc.IRCClient.connectionMade(self)
 
@@ -47,8 +47,8 @@ class DA_BOT(irc.IRCClient):
         irc.IRCClient.connectionLost(self, reason)
     f = protocol.ReconnectingClientFactory()
     f.protocol = irc
-    def signedOn(self):
 
+    def signedOn(self):
 
         network = self.factory.network
 
@@ -59,7 +59,6 @@ class DA_BOT(irc.IRCClient):
         for channel in network['autojoin']:
             print('join channel %s' % channel)
             self.join(channel)
-
 
     @profiler.time_execution
     def parseCommand(self, usr, msg, chan):
@@ -73,23 +72,18 @@ class DA_BOT(irc.IRCClient):
                 args = msg.replace(("!" + plugin["name"]), "")
                 A, B = multiprocessing.Pipe()
 
-                response =  plg.do(args, pipe=B)
+                response = plg.do(args, pipe=B)
                 print response
                 self.msg(chan, response)
                 A.close()
 
-        pass
-
-
     def joined(self, channel):
         print('joined channel')
-
 
     def privmsg(self, user, channel, msg):
         print('[%s] <%s> %s' % (channel, user, msg))
         usr = user.split('!', 2)[0].replace('.', '')
         worker.do_work(self.parseCommand(usr, msg, channel))
-
 
     def alterCollidedNick(self, nickname):
         return nickname + '_'
@@ -108,8 +102,8 @@ class DA_BOT(irc.IRCClient):
     username = property(_get_username)
 
 
-class DA_BOT_FACTORY(protocol.ClientFactory):
-    protocol = DA_BOT
+class CoriolisFactory(protocol.ClientFactory):
+    protocol = Coriolis
 
     def __init__(self, network_name, network):
         self.network_name = network_name
@@ -125,16 +119,19 @@ class DA_BOT_FACTORY(protocol.ClientFactory):
 
 
 def start():
-    for name in networks.keys():
-        factory = DA_BOT_FACTORY(name, networks[name])
+    try:
+        for name in networks.keys():
+            factory = CoriolisFactory(name, networks[name])
 
-        host = networks[name]['host']
-        port = networks[name]['port']
+            host = networks[name]['host']
+            port = networks[name]['port']
 
-        if networks[name]['ssl']:
+            if networks[name]['ssl']:
 
-            reactor.connectSSL(host, port, factory, ssl.ClientContextFactory())
-        else:
-            reactor.connectTCP(host, port, factory)
+                reactor.connectSSL(host, port, factory, ssl.ClientContextFactory())
+            else:
+                reactor.connectTCP(host, port, factory)
 
-    reactor.run()
+        reactor.run()
+    except KeyboardInterrupt, SystemExit:
+        cleanup()
