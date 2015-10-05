@@ -15,10 +15,10 @@ def do(args, pipe=None):
         return "No arguments given"
     elif len(arg) == 1:
         host = string.strip(string.split(args)[0])
-    elif len(arg) == 2:
+    elif len(arg) == 2 or len(arg) == 3:
         record_type = string.strip(string.split(args)[0])
         host = string.strip(string.split(args)[1])
-    elif len(arg) == 3:
+    elif len(arg) == 4:
         return "Usage: !dns RECORD_TYPE(default=A) www.domain.tld."
 
     print "----"
