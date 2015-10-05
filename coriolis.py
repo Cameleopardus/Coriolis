@@ -31,11 +31,45 @@ def cleanup(signal, frame):
     stoppool = threading.Thread(target=worker.close())
     stoppool.daemon = True
     stoppool.start()
-    print"cleaning up.."
-    print "bye!"
+    print("Cleaning Up..")
+    print("bye!")
     os._exit(0)
 
 signal.signal(signal.SIGINT, cleanup)
+
+
+def _parseModes(modes, params, paramModes=('', '')):
+
+    if len(modes) == 0:
+        raise IRCBadModes('Empty mode string')
+
+    if modes[0] not in '+-':
+        raise IRCBadModes('Malformed modes string: %r' % (modes,))
+
+    changes = ([], [])
+
+    direction = None
+    count = -1
+    for ch in modes:
+        if ch in '+-':
+            if count == 0:
+                raise IRCBadModes('Empty mode sequence: %r' % (modes,))
+            direction = '+-'.index(ch)
+            count = 0
+        else:
+            param = None
+            if ch in paramModes[direction]:
+                try:
+                    param = params.pop(0)
+                except IndexError:
+                    raise IRCBadModes('Not enough parameters: %r' % (ch,))
+            changes[direction].append((ch, param))
+            count += 1
+
+    if count == 0:
+        raise IRCBadModes('Empty mode sequence: %r' % (modes,))
+
+    return changes
 
 
 class Coriolis(irc.IRCClient):
@@ -60,6 +94,36 @@ class Coriolis(irc.IRCClient):
             print('join channel %s' % channel)
             self.join(channel)
 
+    def irc_MODE(self, user, params):
+        """
+        Parse a server mode change message, altered to support slack irc gateway
+        """
+        channel, modes, args = params[0], params[1], params[2:]
+
+        if modes[0] not in '-+':
+            modes = '+' + modes
+
+        if channel == self.nickname:
+            # This is a mode change to our individual user, not a channel mode
+            # that involves us.
+            paramModes = self.getUserModeParams()
+        else:
+            paramModes = self.getChannelModeParams()
+
+        try:
+            added, removed = _parseModes(modes, args, paramModes)
+        except IRCBadModes:
+            log.err(None, 'An error occurred while parsing the following '
+                          'MODE message: MODE %s' % (' '.join(params),))
+        else:
+            if added:
+                modes, params = zip(*added)
+                self.modeChanged(user, channel, True, ''.join(modes), params)
+
+            if removed:
+                modes, params = zip(*removed)
+                self.modeChanged(user, channel, False, ''.join(modes), params)
+
     @profiler.time_execution
     def parseCommand(self, usr, msg, chan):
 
@@ -73,7 +137,7 @@ class Coriolis(irc.IRCClient):
                 A, B = multiprocessing.Pipe()
 
                 response = plg.do(args, pipe=B)
-                print response
+                print(response)
                 self.msg(chan, response)
                 A.close()
 
@@ -97,9 +161,17 @@ class Coriolis(irc.IRCClient):
     def _get_username(self):
         return self.factory.network['identity']['username']
 
+    def _get_password(self):
+        if self.factory.network['identity']['server_pw']:
+            return self.factory.network['identity']['server_pw']
+        else:
+            return ""
+
     nickname = property(_get_nickname)
     realname = property(_get_realname)
     username = property(_get_username)
+    password = property(_get_password)
+
 
 
 class CoriolisFactory(protocol.ClientFactory):
@@ -133,5 +205,5 @@ def start():
                 reactor.connectTCP(host, port, factory)
 
         reactor.run()
-    except KeyboardInterrupt, SystemExit:
+    except (KeyboardInterrupt, SystemExit) as e:
         cleanup()
