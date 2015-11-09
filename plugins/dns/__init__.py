@@ -4,7 +4,7 @@ import dns
 from dns import resolver
 import sys
 
-
+helptext = "DNS - Make DNS Queries."
 def do(args, pipe=None):
     record_type = "A"
     records = []
