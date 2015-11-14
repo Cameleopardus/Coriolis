@@ -5,6 +5,7 @@ import logging
 import atexit
 import os
 
+from twisted.internet.defer import Deferred
 from twisted.internet import reactor
 from twisted.internet import protocol
 from twisted.internet import ssl
@@ -41,10 +42,10 @@ signal.signal(signal.SIGINT, cleanup)
 def _parseModes(modes, params, paramModes=('', '')):
 
     if len(modes) == 0:
-        raise IRCBadModes('Empty mode string')
+        raise irc.IRCBadModes('Empty mode string')
 
     if modes[0] not in '+-':
-        raise IRCBadModes('Malformed modes string: %r' % (modes,))
+        raise irc.IRCBadModes('Malformed modes string: %r' % (modes,))
 
     changes = ([], [])
 
@@ -53,7 +54,7 @@ def _parseModes(modes, params, paramModes=('', '')):
     for ch in modes:
         if ch in '+-':
             if count == 0:
-                raise IRCBadModes('Empty mode sequence: %r' % (modes,))
+                raise irc.IRCBadModes('Empty mode sequence: %r' % (modes,))
             direction = '+-'.index(ch)
             count = 0
         else:
@@ -62,12 +63,12 @@ def _parseModes(modes, params, paramModes=('', '')):
                 try:
                     param = params.pop(0)
                 except IndexError:
-                    raise IRCBadModes('Not enough parameters: %r' % (ch,))
+                    raise irc.IRCBadModes('Not enough parameters: %r' % (ch,))
             changes[direction].append((ch, param))
             count += 1
 
     if count == 0:
-        raise IRCBadModes('Empty mode sequence: %r' % (modes,))
+        raise irc.IRCBadModes('Empty mode sequence: %r' % (modes,))
 
     return changes
 
@@ -112,7 +113,7 @@ class Coriolis(irc.IRCClient):
 
         try:
             added, removed = _parseModes(modes, args, paramModes)
-        except IRCBadModes:
+        except irc.IRCBadModes:
             log.err(None, 'An error occurred while parsing the following '
                           'MODE message: MODE %s' % (' '.join(params),))
         else:
@@ -134,12 +135,10 @@ class Coriolis(irc.IRCClient):
 
             if msg.startswith(("!" + plugin["name"])):
                 args = msg.replace(("!" + plugin["name"]), "")
-                A, B = multiprocessing.Pipe()
-
-                response = plg.do(args, pipe=B)
-                print(response)
-                self.msg(chan, response)
-                A.close()
+                self.current_chan = chan
+                result = plg.do(args, coriolis=self)
+                if result:
+                    self.msg(chan, result)
 
     def joined(self, channel):
         print('joined channel')
@@ -173,7 +172,6 @@ class Coriolis(irc.IRCClient):
     password = property(_get_password)
 
 
-
 class CoriolisFactory(protocol.ClientFactory):
     protocol = Coriolis
 
@@ -200,7 +198,8 @@ def start():
 
             if networks[name]['ssl']:
 
-                reactor.connectSSL(host, port, factory, ssl.ClientContextFactory())
+                reactor.connectSSL(
+                    host, port, factory, ssl.ClientContextFactory())
             else:
                 reactor.connectTCP(host, port, factory)
 
