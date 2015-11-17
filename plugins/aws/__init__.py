@@ -10,9 +10,9 @@ def describe_environments(params, coriolis):
     response = client.describe_environments()
     environments = response["DescribeEnvironmentsResponse"][
         "DescribeEnvironmentsResult"]["Environments"]
-    print environments
 
-    return str(json.dumps([environment["EnvironmentName"] for environment in environments]))
+    return str(json.dumps(
+        [environment["EnvironmentName"] for environment in environments]))
 
 
 def environment_health(params, coriolis):
@@ -53,18 +53,20 @@ def environment_logs(params, coriolis):
                 "RetrieveEnvironmentInfoResult"][
                 "EnvironmentInfo"]
             if len(environmentinfo) > 0:
-                coriolis.msg(coriolis.current_chan, str(environmentinfo[0]["Message"]))
+                coriolis.msg(
+                    coriolis.current_chan, str(environmentinfo[0]["Message"]))
             else:
-                coriolis.msg(coriolis.current_chan, "Tail not finished, Requesting again in %s seconds." % delay)
                 reactor.callLater(delay, _get_logs)
         except StopIteration:
-            coriolis.msg(coriolis.current_chan, "Couldn't get logs after 20 seconds, you should try again.")
+            coriolis.msg(
+                coriolis.current_chan,
+                "Couldn't get logs after 20 seconds, you should try again.")
         except boto.exception.BotoServerError as e:
             if "must be ready" in str(e.message.lower()):
-                coriolis.msg(coriolis.current_chan, "waiting for aws..")
+                reactor.callLater(delay, _get_logs)
             else:
+                coriolis.msg(coriolis.current_chan, "Something went awry, heres the output:")
                 coriolis.msg(coriolis.current_chan, str(e))
-            reactor.callLater(delay, _get_logs)
     reactor.callLater(timeout, _get_logs)
     return ""
 
